@@ -1,19 +1,24 @@
 package com.jerry.member.service;
 
+import com.jerry.auth.utils.CustomAuthorityUtils;
 import com.jerry.exception.BusinessLogicException;
 import com.jerry.exception.ExceptionCode;
 import com.jerry.helper.event.MemberRegistrationApplicationEvent;
 import com.jerry.member.entity.Member;
 import com.jerry.member.repository.MemberRepository;
+import lombok.AllArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -24,19 +29,22 @@ import java.util.Optional;
  */
 @Transactional
 @Service
+@AllArgsConstructor
 public class MemberService {
     private final MemberRepository memberRepository;
     private final ApplicationEventPublisher publisher;
-
-    public MemberService(MemberRepository memberRepository,
-                         ApplicationEventPublisher publisher) {
-        this.memberRepository = memberRepository;
-        this.publisher = publisher;
-
-    }
+    private final PasswordEncoder passwordEncoder;
+    private final CustomAuthorityUtils authorityUtils;
 
     public Member createMember(Member member) {
         verifyExistsEmail(member.getEmail());
+
+        String encryptedPassword = passwordEncoder.encode(member.getPassword());
+        member.setPassword(encryptedPassword);
+
+        List<String> roles = authorityUtils.createRoles(member.getEmail());
+        member.setRoles(roles);
+
         Member savedMember = memberRepository.save(member);
 
         // 추가된 부분
